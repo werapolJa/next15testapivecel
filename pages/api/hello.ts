@@ -23,7 +23,7 @@ export default async function handler(
   res: NextApiResponse<Data>
 ) {
   if (req.method === "GET") {
-    const result = await connectionPool.query("select * from pet");
+    const result = await connectionPool.query("select * from users");
     res.status(200).json({ data: result.rows });
   }
 }

@@ -28,7 +28,7 @@ export default async function handler(
     try {
       const result = await connectionPool.query("SELECT * FROM posts");
       res.status(200).json({ data: result.rows });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ error: "An error occurred while querying the database." });
     }
   }

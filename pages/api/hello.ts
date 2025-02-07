@@ -1,4 +1,3 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import connectionPool from "@/utils/db";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -6,24 +5,31 @@ type User = {
   user_id: number;
   full_name: string;
   phone: string;
-  id_number?: string;
-  image?: string;
-  birthdate?: string;
-  status: string;
-  create_at: string;
-  update_at: string;
 };
 
 type Data = {
   data?: User[];
+  error?: string;
 };
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
+  // Check if NEXT_PUBLIC_SUPABASE_URL is set
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  if (!supabaseUrl) {
+    // If the environment variable is not set, return an error response
+    return res.status(500).json({ error: "Supabase URL is not set in environment variables." });
+  }
+
   if (req.method === "GET") {
-    const result = await connectionPool.query("select * from posts");
-    res.status(200).json({ data: result.rows });
+    try {
+      const result = await connectionPool.query("SELECT * FROM posts");
+      res.status(200).json({ data: result.rows });
+    } catch (error) {
+      res.status(500).json({ error: "An error occurred while querying the database." });
+    }
   }
 }

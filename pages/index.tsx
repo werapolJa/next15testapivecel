@@ -1,116 +1,226 @@
+import axios from "axios";
 import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import { useState, useEffect } from "react";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-console.log("Supabase Anon Key:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+interface ImageData {
+  id: string;
+  url: string;
+  storagePath: string;
+}
 
 export default function Home() {
-  return (
-    <div
-      className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]`}
-    >
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              pages/index.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [image, setImage] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [editMode, setEditMode] = useState<boolean>(false);
+  const [images, setImages] = useState<ImageData[]>([]);
+  const [name, setName] = useState<string>("");
+  // console.log(name);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    fetchImages();
+  }, []);
+
+  const fetchImages = async () => {
+    try {
+      const response = await axios.get<{ data: ImageData[] }>("/api/getimage");
+      setImages(response.data.data);
+    } catch (err) {
+      console.log("Error fetching images:", err);
+    }
+  };
+
+  const ProfileImage = ({
+    image,
+    onImageChange,
+    onEdit,
+  }: {
+    image: string | null;
+    onImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onEdit: () => void;
+  }) => (
+    <div className="relative rounded-full w-32 h-32 md:w-60 md:h-60 bg-gray-200 flex items-center justify-center">
+      <Image
+        src={image || ""}
+        alt="Profile"
+        width={240}
+        height={240}
+        className={`object-cover w-full h-full rounded-full ${
+          !image ? "p-12 md:p-0 w-10 h-10 md:w-20 md:h-20 opacity-80" : ""
+        }`}
+      />
+      <button
+        className="absolute bottom-1 right-1 md:bottom-1 md:right-1 bg-orange-100 text-white rounded-full p-2 md:p-4 md:w-15 md:h-15"
+        onClick={() => document.getElementById("file-upload")?.click()}
+      >
+        <div className="w-20 h-20 bg-red-50">x</div>
+      </button>
+      <button
+        className="absolute bottom-1 left-1 md:bottom-1 md:left-1 bg-blue-100 text-white rounded-full p-2 md:p-4 md:w-15 md:h-15"
+        onClick={onEdit}
+      >
+        <div className="w-20 h-20 bg-blue-50">Edit</div>
+      </button>
+      <input
+        type="file"
+        id="file-upload"
+        className="hidden"
+        accept="image/*"
+        onChange={onImageChange}
+      />
+    </div>
+  );
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      alert("No file selected.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload a valid image file.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setSelectedFile(file);
+  };
+
+  const handleAddImage = async () => {
+    if (!selectedFile) {
+      alert("No file selected.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", selectedFile);
+
+    try {
+      const response = await axios.post("/api/pet/uploadyoupet", formData);
+      setImage(response.data.urls[0]);
+      setSelectedFile(null);
+      fetchImages(); // Fetch images again after adding a new one
+      console.log(response.data.urls[0]);
+
+      const dataCreate = {
+        name: name,
+        url: response.data.urls[0],
+      };
+      await axios.post("/api/pet/createpet", dataCreate);
+    } catch (err) {
+      console.log("Error uploading image:", err);
+    }
+  };
+
+  const handleEditImage = () => {
+    setEditMode(true);
+  };
+
+  const handleSaveEdit = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      alert("No file selected.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload a valid image file.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const response = await axios.post("/api/pet/uploadyoupet", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setImage(response.data.urls[0]);
+      setEditMode(false);
+      fetchImages(); // Fetch images again after editing
+    } catch (err) {
+      console.log("Error uploading image:", err);
+    }
+  };
+
+  const handleDeleteImage = async (url: string) => {
+    try {
+      await axios.delete("/api/deleteimage", { data: { url } });
+      fetchImages(); // Fetch images again after deleting
+    } catch (err) {
+      console.log("Error deleting image:", err);
+    }
+  };
+  const handleChangeName = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+  };
+
+  return (
+    <div className="max-w-xl mx-auto flex items-center flex-col mt-52">
+      <ProfileImage
+        image={image}
+        onImageChange={handleImageChange}
+        onEdit={handleEditImage}
+      />
+      {editMode && (
+        <input
+          type="file"
+          id="edit-file-upload"
+          className="hidden"
+          accept="image/*"
+          onChange={handleSaveEdit}
+        />
+      )}
+      <input
+        type="text"
+        name=""
+        id=""
+        placeholder="Name"
+        className="border px-2  py-2 mt-2"
+        onChange={handleChangeName}
+      />
+      {selectedFile && (
+        <button
+          onClick={handleAddImage}
+          className="mt-2 bg-blue-500 text-white py-2 rounded px-20"
+        >
+          Create
+        </button>
+      )}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Uploaded Images</h2>
+        <div className="grid grid-cols-3 gap-4">
+          {images.map((img, index) => (
+            <div
+              key={index}
+              className="relative w-32 h-32 md:w-60 md:h-60 bg-gray-200 flex items-center justify-center"
+            >
+              <Image
+                src={img.url}
+                alt={`Uploaded image ${index + 1}`}
+                width={240}
+                height={240}
+                className="object-cover w-full h-full rounded-full"
+              />
+              <button
+                className="absolute top-1 right-1 bg-red-100 text-white rounded-full p-2 md:p-4 md:w-15 md:h-15"
+                onClick={() => handleDeleteImage(img.url)}
+              >
+                <div className="w-20 h-20 bg-red-50">Delete</div>
+              </button>
+            </div>
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }
